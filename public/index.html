@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Jarvis</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #0a0a0f;
+    color: #d0e8ff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+
+  .container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    box-sizing: border-box;
+  }
+
+  #reactor-btn {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    border: none;
+    background: radial-gradient(circle at 35% 30%, #3fd0ff, #0d6ea8 60%, #063a55 100%);
+    box-shadow:
+      0 0 25px 6px rgba(63, 208, 255, 0.55),
+      inset 0 0 20px rgba(255, 255, 255, 0.25);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.3s ease;
+    outline: none;
+  }
+
+  #reactor-btn:hover {
+    transform: scale(1.03);
+  }
+
+  #reactor-btn:active {
+    transform: scale(0.97);
+  }
+
+  #reactor-btn.listening {
+    animation: pulse 1.2s ease-in-out infinite;
+    background: radial-gradient(circle at 35% 30%, #6fffb0, #0d9a5a 60%, #045933 100%);
+    box-shadow:
+      0 0 40px 12px rgba(111, 255, 176, 0.7),
+      inset 0 0 25px rgba(255, 255, 255, 0.3);
+  }
+
+  #reactor-btn.speaking {
+    animation: pulse 0.6s ease-in-out infinite;
+    background: radial-gradient(circle at 35% 30%, #ffd76f, #a86a0d 60%, #593a04 100%);
+    box-shadow:
+      0 0 40px 12px rgba(255, 215, 111, 0.7),
+      inset 0 0 25px rgba(255, 255, 255, 0.3);
+  }
+
+  @keyframes pulse {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+
+  #status {
+    margin-top: 24px;
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #7fb8de;
+    min-height: 20px;
+    text-align: center;
+  }
+
+  #conversation {
+    margin-top: 40px;
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .msg {
+    padding: 12px 16px;
+    border-radius: 10px;
+    line-height: 1.4;
+    font-size: 15px;
+    max-width: 85%;
+    word-wrap: break-word;
+  }
+
+  .msg.user {
+    align-self: flex-end;
+    background: #1a3550;
+    color: #cfe8ff;
+  }
+
+  .msg.jarvis {
+    align-self: flex-start;
+    background: #16202b;
+    color: #a8f0c8;
+    border: 1px solid rgba(111, 255, 176, 0.25);
+  }
+
+  .msg .role {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.55;
+    margin-bottom: 4px;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <button id="reactor-btn" aria-label="Talk to Jarvis"></button>
+    <div id="status">Click to talk</div>
+    <div id="conversation"></div>
+  </div>
+
+<script>
+  const btn = document.getElementById('reactor-btn');
+  const statusEl = document.getElementById('status');
+  const conversationEl = document.getElementById('conversation');
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    statusEl.textContent = 'Speech recognition not supported in this browser';
+    btn.disabled = true;
+  }
+
+  let recognition = null;
+  let isListening = false;
+
+  function addMessage(role, text) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + (role === 'user' ? 'user' : 'jarvis');
+    const label = document.createElement('span');
+    label.className = 'role';
+    label.textContent = role === 'user' ? 'You' : 'Jarvis';
+    const body = document.createElement('span');
+    body.textContent = text;
+    div.appendChild(label);
+    div.appendChild(body);
+    conversationEl.appendChild(div);
+    div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }
+
+  function setState(state) {
+    btn.classList.remove('listening', 'speaking');
+    if (state === 'listening') {
+      btn.classList.add('listening');
+      statusEl.textContent = 'Listening…';
+    } else if (state === 'thinking') {
+      statusEl.textContent = 'Thinking…';
+    } else if (state === 'speaking') {
+      btn.classList.add('speaking');
+      statusEl.textContent = 'Speaking…';
+    } else {
+      statusEl.textContent = 'Click to talk';
+    }
+  }
+
+  async function sendToJarvis(text) {
+    setState('thinking');
+    try {
+      const res = await fetch('http://localhost:3000/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text })
+      });
+
+      if (!res.ok) {
+        throw new Error('Server responded with ' + res.status);
+      }
+
+      const data = await res.json();
+      const reply = data.response || '(no response)';
+      addMessage('jarvis', reply);
+      speak(reply);
+    } catch (err) {
+      console.error(err);
+      const errText = 'Sorry, I ran into an error talking to the server.';
+      addMessage('jarvis', errText);
+      speak(errText);
+    }
+  }
+
+  function speak(text) {
+    if (!window.speechSynthesis) {
+      setState('idle');
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.onstart = () => setState('speaking');
+    utterance.onend = () => setState('idle');
+    utterance.onerror = () => setState('idle');
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function startListening() {
+    if (!SpeechRecognition || isListening) return;
+
+    recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      isListening = true;
+      setState('listening');
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      addMessage('user', transcript);
+      sendToJarvis(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      isListening = false;
+      setState('idle');
+    };
+
+    recognition.onend = () => {
+      isListening = false;
+      if (statusEl.textContent === 'Listening…') {
+        setState('idle');
+      }
+    };
+
+    recognition.start();
+  }
+
+  btn.addEventListener('click', () => {
+    if (isListening) {
+      recognition && recognition.stop();
+      return;
+    }
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    startListening();
+  });
+</script>
+</body>
+</html>
