@@ -5,11 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Vanta</title>
 <style>
+  :root {
+    color-scheme: dark;
+  }
+
   html, body {
     margin: 0;
     padding: 0;
     height: 100%;
-    background: #0a0a0f;
+    background: radial-gradient(circle at 50% 28%, #10131d 0%, #05060a 65%, #030305 100%);
     color: #d0e8ff;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     overflow-x: hidden;
@@ -25,18 +29,133 @@
     box-sizing: border-box;
   }
 
-  #reactor-btn {
+  .brand {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    color: #6fa8d8;
+    margin-bottom: 36px;
+    text-shadow: 0 0 18px rgba(63, 208, 255, 0.5);
+  }
+
+  /* ---------- Reactor ---------- */
+
+  .reactor-wrap {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    --core-light: #3fd0ff;
+    --core-mid: #0d6ea8;
+    --core-dark: #063a55;
+    --glow: rgba(63, 208, 255, 0.55);
+    --accent: #3fd0ff;
+    transition: filter 0.4s ease;
+  }
+
+  .reactor-wrap.listening {
+    --core-light: #6fffb0;
+    --core-mid: #0d9a5a;
+    --core-dark: #045933;
+    --glow: rgba(111, 255, 176, 0.7);
+    --accent: #6fffb0;
+  }
+
+  .reactor-wrap.thinking {
+    --core-light: #cfb2ff;
+    --core-mid: #6a3fb0;
+    --core-dark: #2c1650;
+    --glow: rgba(185, 139, 255, 0.65);
+    --accent: #b98bff;
+  }
+
+  .reactor-wrap.speaking {
+    --core-light: #ffe29a;
+    --core-mid: #a86a0d;
+    --core-dark: #593a04;
+    --glow: rgba(255, 215, 111, 0.7);
+    --accent: #ffd76f;
+  }
+
+  .ring {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  /* Slow ambient ring — always turning gently, like idling machinery */
+  .ring-outer {
+    width: 250px;
+    height: 250px;
+    border: 1px dashed var(--accent);
+    opacity: 0.3;
+    animation: spin 60s linear infinite;
+    transition: border-color 0.4s ease;
+  }
+
+  .ring-mid {
+    width: 222px;
+    height: 222px;
+    border: 1px solid var(--accent);
+    opacity: 0.18;
+    animation: spin-reverse 38s linear infinite;
+    transition: border-color 0.4s ease;
+  }
+
+  /* Loading spinner — only visible while thinking */
+  .ring-spinner {
+    width: 198px;
+    height: 198px;
+    border: 3px solid transparent;
+    border-top-color: var(--accent);
+    border-right-color: var(--accent);
+    opacity: 0;
+    animation: spin 0.9s linear infinite;
+    transition: opacity 0.25s ease;
+  }
+
+  .reactor-wrap.thinking .ring-spinner {
+    opacity: 0.9;
+  }
+
+  /* Sonar ping rings — only visible while listening */
+  .ping,
+  .ping::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    margin: auto;
     width: 180px;
     height: 180px;
     border-radius: 50%;
+    border: 2px solid var(--accent);
+    opacity: 0;
+  }
+
+  .ping::before {
+    animation-delay: 0.9s;
+  }
+
+  .reactor-wrap.listening .ping,
+  .reactor-wrap.listening .ping::before {
+    animation: ping 1.8s ease-out infinite;
+  }
+
+  #reactor-btn {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 180px;
+    height: 180px;
+    padding: 0;
+    border-radius: 50%;
     border: none;
-    background: radial-gradient(circle at 35% 30%, #3fd0ff, #0d6ea8 60%, #063a55 100%);
-    box-shadow:
-      0 0 25px 6px rgba(63, 208, 255, 0.55),
-      inset 0 0 20px rgba(255, 255, 255, 0.25);
+    background: transparent;
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.3s ease;
     outline: none;
+    transition: transform 0.15s ease;
   }
 
   #reactor-btn:hover {
@@ -47,36 +166,86 @@
     transform: scale(0.97);
   }
 
-  #reactor-btn.listening {
-    animation: pulse 1.2s ease-in-out infinite;
-    background: radial-gradient(circle at 35% 30%, #6fffb0, #0d9a5a 60%, #045933 100%);
-    box-shadow:
-      0 0 40px 12px rgba(111, 255, 176, 0.7),
-      inset 0 0 25px rgba(255, 255, 255, 0.3);
+  #reactor-btn:disabled {
+    cursor: not-allowed;
   }
 
-  #reactor-btn.speaking {
-    animation: pulse 0.6s ease-in-out infinite;
-    background: radial-gradient(circle at 35% 30%, #ffd76f, #a86a0d 60%, #593a04 100%);
-    box-shadow:
-      0 0 40px 12px rgba(255, 215, 111, 0.7),
-      inset 0 0 25px rgba(255, 255, 255, 0.3);
+  .spokes {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
   }
 
-  @keyframes pulse {
-    0%   { transform: scale(1); }
-    50%  { transform: scale(1.08); }
-    100% { transform: scale(1); }
+  .spokes .bezel {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1;
+    opacity: 0.6;
+    transition: stroke 0.4s ease;
   }
+
+  .spokes line {
+    stroke: var(--accent);
+    stroke-width: 1.4;
+    opacity: 0.4;
+    transition: stroke 0.4s ease;
+  }
+
+  .core {
+    position: absolute;
+    inset: 15%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--core-light), var(--core-mid) 55%, var(--core-dark) 100%);
+    box-shadow:
+      0 0 30px 8px var(--glow),
+      inset 0 0 18px rgba(255, 255, 255, 0.28);
+    animation: breathe 3.2s ease-in-out infinite;
+    transition: background 0.4s ease, box-shadow 0.4s ease;
+  }
+
+  .reactor-wrap.listening .core {
+    animation: breathe 0.9s ease-in-out infinite;
+  }
+
+  .reactor-wrap.speaking .core {
+    animation: breathe 0.55s ease-in-out infinite;
+  }
+
+  .reactor-wrap.thinking .core {
+    animation: breathe 1.4s ease-in-out infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes spin-reverse {
+    to { transform: rotate(-360deg); }
+  }
+
+  @keyframes breathe {
+    0%, 100% { filter: brightness(1) saturate(1); transform: scale(1); }
+    50%      { filter: brightness(1.22) saturate(1.15); transform: scale(1.035); }
+  }
+
+  @keyframes ping {
+    0%   { transform: scale(0.85); opacity: 0.55; }
+    100% { transform: scale(1.55); opacity: 0; }
+  }
+
+  /* ---------- Status + conversation ---------- */
 
   #status {
-    margin-top: 24px;
-    font-size: 14px;
-    letter-spacing: 0.08em;
+    margin-top: 28px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #7fb8de;
     min-height: 20px;
     text-align: center;
+    transition: color 0.3s ease;
   }
 
   #conversation {
@@ -95,6 +264,12 @@
     font-size: 15px;
     max-width: 85%;
     word-wrap: break-word;
+    animation: fade-in 0.25s ease;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
   .msg.user {
@@ -120,32 +295,63 @@
   }
 
   #reset-btn {
-    margin-top: 20px;
+    margin-top: 28px;
     background: none;
     border: 1px solid rgba(127, 184, 222, 0.4);
     color: #7fb8de;
     font-size: 12px;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    padding: 8px 16px;
-    border-radius: 6px;
+    padding: 8px 18px;
+    border-radius: 20px;
     cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
   }
 
   #reset-btn:hover {
     background: rgba(127, 184, 222, 0.1);
+    border-color: rgba(127, 184, 222, 0.7);
   }
 </style>
 </head>
 <body>
   <div class="container">
-    <button id="reactor-btn" aria-label="Talk to Vanta"></button>
+    <div class="brand">Vanta</div>
+
+    <div class="reactor-wrap" id="reactor-wrap">
+      <div class="ring ring-outer"></div>
+      <div class="ring ring-mid"></div>
+      <div class="ring ring-spinner"></div>
+      <div class="ping"></div>
+      <button id="reactor-btn" aria-label="Talk to Vanta">
+        <svg class="spokes" viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="bezel" cx="50" cy="50" r="48" />
+          <g>
+            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(0 50 50)" />
+            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(30 50 50)" />
+            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(60 50 50)" />
+            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(90 50 50)" />
+            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(120 50 50)" />
+            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(150 50 50)" />
+            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(180 50 50)" />
+            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(210 50 50)" />
+            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(240 50 50)" />
+            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(270 50 50)" />
+            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(300 50 50)" />
+            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(330 50 50)" />
+          </g>
+        </svg>
+        <div class="core"></div>
+      </button>
+    </div>
+
     <div id="status">Click to talk</div>
     <div id="conversation"></div>
     <button id="reset-btn">New conversation</button>
   </div>
 
 <script>
+  const wrap = document.getElementById('reactor-wrap');
   const btn = document.getElementById('reactor-btn');
   const statusEl = document.getElementById('status');
   const conversationEl = document.getElementById('conversation');
@@ -175,19 +381,28 @@
     div.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
+  const STATUS_COLORS = {
+    idle: '#7fb8de',
+    listening: '#6fffb0',
+    thinking: '#b98bff',
+    speaking: '#ffd76f'
+  };
+
   function setState(state) {
-    btn.classList.remove('listening', 'speaking');
+    wrap.classList.remove('listening', 'thinking', 'speaking');
     if (state === 'listening') {
-      btn.classList.add('listening');
+      wrap.classList.add('listening');
       statusEl.textContent = 'Listening…';
     } else if (state === 'thinking') {
+      wrap.classList.add('thinking');
       statusEl.textContent = 'Thinking…';
     } else if (state === 'speaking') {
-      btn.classList.add('speaking');
+      wrap.classList.add('speaking');
       statusEl.textContent = 'Speaking…';
     } else {
       statusEl.textContent = 'Click to talk';
     }
+    statusEl.style.color = STATUS_COLORS[state] || STATUS_COLORS.idle;
   }
 
   async function sendToVanta(text) {
