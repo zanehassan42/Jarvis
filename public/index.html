@@ -73,12 +73,42 @@
   #reset-btn:hover {
     color: rgba(232, 195, 120, 0.8);
   }
+
+  #voice-select {
+    position: fixed;
+    top: 22px;
+    right: 84px;
+    max-width: 170px;
+    background: none;
+    border: none;
+    color: rgba(230, 220, 200, 0.35);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    pointer-events: auto;
+    padding: 6px;
+    transition: color 0.2s ease;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  #voice-select:hover,
+  #voice-select:focus {
+    color: rgba(232, 195, 120, 0.8);
+  }
+
+  #voice-select option {
+    background: #0a0a10;
+    color: #e6dcc8;
+  }
 </style>
 </head>
 <body>
   <canvas id="scene"></canvas>
 
   <button id="reset-btn">Reset</button>
+  <select id="voice-select" aria-label="Choose voice"></select>
 
   <div class="overlay">
     <div id="status">Tap anywhere to speak</div>
@@ -423,43 +453,59 @@
   let recognition = null;
   let isListening = false;
 
-  /* ---- Pick the best-sounding voice available in this browser. Browsers
-     default to a flat, robotic voice even when better ones are installed —
-     Chrome's "Online (Natural)" voices and Google's network voices are a
-     clear step up over the local SAPI voices Windows ships with. ---- */
+  /* ---- Voice picker: let the user hear and choose from whatever voices
+     are actually installed on their machine, since the "best" one varies
+     by OS and can't be reliably guessed from here. Choice is remembered
+     in localStorage. ---- */
 
   let selectedVoice = null;
-  const VOICE_PRIORITY = [
-    'Google UK English Female',
-    'Google US English',
-    'Microsoft Aria Online (Natural)',
-    'Microsoft Jenny Online (Natural)',
-    'Microsoft Sonia Online (Natural)',
-    'Microsoft Guy Online (Natural)',
-    'Samantha',
-    'Microsoft Zira Desktop',
-    'Microsoft Hazel Desktop'
-  ];
+  const voiceSelectEl = document.getElementById('voice-select');
+  const VOICE_STORAGE_KEY = 'vanta-voice-name';
 
-  function pickVoice() {
+  function populateVoiceList() {
     const voices = window.speechSynthesis.getVoices();
-    if (!voices.length) return null;
-    for (const name of VOICE_PRIORITY) {
-      const match = voices.find((v) => v.name === name);
-      if (match) return match;
+    if (!voices.length) return;
+
+    const saved = localStorage.getItem(VOICE_STORAGE_KEY);
+
+    voiceSelectEl.innerHTML = '';
+    // English voices first (most relevant), then everything else, each
+    // group alphabetical so the list is easy to scan.
+    const english = voices.filter((v) => v.lang.startsWith('en')).sort((a, b) => a.name.localeCompare(b.name));
+    const other = voices.filter((v) => !v.lang.startsWith('en')).sort((a, b) => a.name.localeCompare(b.name));
+    for (const v of [...english, ...other]) {
+      const opt = document.createElement('option');
+      opt.value = v.name;
+      opt.textContent = v.name + (v.lang.startsWith('en') ? '' : ` (${v.lang})`);
+      voiceSelectEl.appendChild(opt);
     }
-    const enhanced = voices.find((v) => v.lang.startsWith('en') && /natural|online|neural/i.test(v.name));
-    if (enhanced) return enhanced;
-    const english = voices.find((v) => v.lang.startsWith('en'));
-    return english || voices[0];
+
+    const toSelect = voices.find((v) => v.name === saved) || english[0] || voices[0];
+    selectedVoice = toSelect;
+    voiceSelectEl.value = toSelect.name;
   }
 
   if (window.speechSynthesis) {
-    selectedVoice = pickVoice();
-    window.speechSynthesis.onvoiceschanged = () => {
-      selectedVoice = pickVoice();
-    };
+    populateVoiceList();
+    window.speechSynthesis.onvoiceschanged = populateVoiceList;
   }
+
+  voiceSelectEl.addEventListener('change', (e) => {
+    e.stopPropagation();
+    const voices = window.speechSynthesis.getVoices();
+    const chosen = voices.find((v) => v.name === voiceSelectEl.value);
+    if (!chosen) return;
+    selectedVoice = chosen;
+    localStorage.setItem(VOICE_STORAGE_KEY, chosen.name);
+
+    // Preview the newly chosen voice immediately
+    window.speechSynthesis.cancel();
+    const preview = new SpeechSynthesisUtterance('Hello, this is Vanta.');
+    preview.voice = chosen;
+    window.speechSynthesis.speak(preview);
+  });
+
+  voiceSelectEl.addEventListener('click', (e) => e.stopPropagation());
 
   function setState(state) {
     currentState = state;
