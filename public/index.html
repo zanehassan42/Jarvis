@@ -423,6 +423,44 @@
   let recognition = null;
   let isListening = false;
 
+  /* ---- Pick the best-sounding voice available in this browser. Browsers
+     default to a flat, robotic voice even when better ones are installed —
+     Chrome's "Online (Natural)" voices and Google's network voices are a
+     clear step up over the local SAPI voices Windows ships with. ---- */
+
+  let selectedVoice = null;
+  const VOICE_PRIORITY = [
+    'Google UK English Female',
+    'Google US English',
+    'Microsoft Aria Online (Natural)',
+    'Microsoft Jenny Online (Natural)',
+    'Microsoft Sonia Online (Natural)',
+    'Microsoft Guy Online (Natural)',
+    'Samantha',
+    'Microsoft Zira Desktop',
+    'Microsoft Hazel Desktop'
+  ];
+
+  function pickVoice() {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return null;
+    for (const name of VOICE_PRIORITY) {
+      const match = voices.find((v) => v.name === name);
+      if (match) return match;
+    }
+    const enhanced = voices.find((v) => v.lang.startsWith('en') && /natural|online|neural/i.test(v.name));
+    if (enhanced) return enhanced;
+    const english = voices.find((v) => v.lang.startsWith('en'));
+    return english || voices[0];
+  }
+
+  if (window.speechSynthesis) {
+    selectedVoice = pickVoice();
+    window.speechSynthesis.onvoiceschanged = () => {
+      selectedVoice = pickVoice();
+    };
+  }
+
   function setState(state) {
     currentState = state;
     if (state === 'listening') {
@@ -465,6 +503,9 @@
     }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
+    if (selectedVoice) utterance.voice = selectedVoice;
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
     utterance.onstart = () => setState('speaking');
     utterance.onend = () => setState('idle');
     utterance.onerror = () => setState('idle');
