@@ -36,53 +36,15 @@
     box-sizing: border-box;
   }
 
-  #conversation {
-    width: 100%;
-    max-width: 560px;
-    max-height: 30vh;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 22px;
-    -webkit-mask-image: linear-gradient(to bottom, transparent, black 30%);
-    mask-image: linear-gradient(to bottom, transparent, black 30%);
-  }
-
-  .msg {
-    font-size: 14px;
-    line-height: 1.5;
-    color: rgba(232, 226, 210, 0.85);
-    animation: fade-in 0.4s ease;
-  }
-
-  .msg .role {
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    margin-right: 8px;
-    color: rgba(232, 185, 79, 0.65);
-  }
-
-  .msg.user .role {
-    color: rgba(180, 200, 220, 0.6);
-  }
-
-  @keyframes fade-in {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
   #status {
     font-size: 12px;
     font-weight: 400;
     letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: rgba(232, 185, 79, 0.55);
+    color: rgba(232, 195, 120, 0.55);
     margin-bottom: 14px;
     min-height: 16px;
     text-align: center;
-    transition: color 0.6s ease;
   }
 
   .brand {
@@ -109,7 +71,7 @@
   }
 
   #reset-btn:hover {
-    color: rgba(232, 185, 79, 0.8);
+    color: rgba(232, 195, 120, 0.8);
   }
 </style>
 </head>
@@ -119,7 +81,6 @@
   <button id="reset-btn">Reset</button>
 
   <div class="overlay">
-    <div id="conversation"></div>
     <div id="status">Tap anywhere to speak</div>
     <div class="brand">V&nbsp;.&nbsp;A&nbsp;.&nbsp;N&nbsp;.&nbsp;T&nbsp;.&nbsp;A</div>
   </div>
@@ -169,6 +130,54 @@
 
   const rand = (a, b) => a + Math.random() * (b - a);
 
+  /* ---- Approximate distance-to-edge transform, used as a relief/depth map
+     so the particle field can be lit like a sculpted bust rather than a
+     flat silhouette. Two-pass chamfer distance transform. ---- */
+
+  const dist = new Float32Array(MASK_W * MASK_H);
+  for (let y = 0; y < MASK_H; y++) {
+    for (let x = 0; x < MASK_W; x++) {
+      dist[y * MASK_W + x] = insideFace(x, y) ? Infinity : 0;
+    }
+  }
+  const D1 = 1, D2 = 1.4142;
+  for (let y = 0; y < MASK_H; y++) {
+    for (let x = 0; x < MASK_W; x++) {
+      const idx = y * MASK_W + x;
+      if (dist[idx] === 0) continue;
+      let v = dist[idx];
+      if (x > 0) v = Math.min(v, dist[idx - 1] + D1);
+      if (y > 0) v = Math.min(v, dist[idx - MASK_W] + D1);
+      if (x > 0 && y > 0) v = Math.min(v, dist[idx - MASK_W - 1] + D2);
+      if (x < MASK_W - 1 && y > 0) v = Math.min(v, dist[idx - MASK_W + 1] + D2);
+      dist[idx] = v;
+    }
+  }
+  for (let y = MASK_H - 1; y >= 0; y--) {
+    for (let x = MASK_W - 1; x >= 0; x--) {
+      const idx = y * MASK_W + x;
+      if (dist[idx] === 0) continue;
+      let v = dist[idx];
+      if (x < MASK_W - 1) v = Math.min(v, dist[idx + 1] + D1);
+      if (y < MASK_H - 1) v = Math.min(v, dist[idx + MASK_W] + D1);
+      if (x < MASK_W - 1 && y < MASK_H - 1) v = Math.min(v, dist[idx + MASK_W + 1] + D2);
+      if (x > 0 && y < MASK_H - 1) v = Math.min(v, dist[idx + MASK_W - 1] + D2);
+      dist[idx] = v;
+    }
+  }
+  let maxDist = 0;
+  for (let i = 0; i < dist.length; i++) if (isFinite(dist[i]) && dist[i] > maxDist) maxDist = dist[i];
+
+  const SHADOW_GOLD = { r: 58, g: 36, b: 10 };
+  const HIGHLIGHT_GOLD = { r: 255, g: 244, b: 205 };
+  function lerpColor(a, b, t) {
+    return {
+      r: a.r + (b.r - a.r) * t,
+      g: a.g + (b.g - a.g) * t,
+      b: a.b + (b.b - a.b) * t
+    };
+  }
+
   const faceParticles = [];
   const SPACING = 3.4;
   for (let y = 0; y < MASK_H; y += SPACING) {
@@ -176,6 +185,16 @@
       const jx = x + rand(-1.2, 1.2);
       const jy = y + rand(-1.2, 1.2);
       if (insideFace(jx, jy)) {
+        const depthNorm = Math.min(1, dist[((jy | 0) * MASK_W) + (jx | 0)] / maxDist);
+        const x0Norm = jx / MASK_W;
+        const y0Norm = jy / MASK_H;
+        // Key light from above and from the face side — models volume like a lit bust
+        const lightFactor = (1 - y0Norm) * 0.6 + x0Norm * 0.4;
+        const reliefRaw = Math.max(0, Math.min(1, depthNorm * 0.5 + lightFactor * 0.5));
+        // Push contrast so the highlight/shadow read as real volume, not a soft tint
+        const relief = Math.pow(reliefRaw, 1.6);
+        const col = lerpColor(SHADOW_GOLD, HIGHLIGHT_GOLD, relief);
+
         faceParticles.push({
           bx: jx - MASK_W / 2,
           by: jy,
@@ -183,7 +202,8 @@
           speed: rand(0.5, 1.3),
           r: rand(0.8, 1.6),
           driftPhaseX: rand(0, Math.PI * 2),
-          driftPhaseY: rand(0, Math.PI * 2)
+          driftPhaseY: rand(0, Math.PI * 2),
+          color: col
         });
       }
     }
@@ -209,39 +229,39 @@
   /* ======================= Ambient full-page mist ======================= */
 
   const ambientBlobs = [];
-  for (let i = 0; i < 22; i++) {
+  for (let i = 0; i < 14; i++) {
     ambientBlobs.push({
       ox: rand(0, 1),
       oy: rand(0, 1),
-      r: rand(120, 320),
+      r: rand(130, 280),
       speed: rand(0.02, 0.06),
       phase: rand(0, Math.PI * 2),
-      driftX: rand(30, 90),
-      driftY: rand(20, 70)
+      driftX: rand(40, 110),
+      driftY: rand(30, 90)
     });
   }
 
   /* ======================= Head mist (state-reactive cloud) ======================= */
 
   const headMistBlobs = [];
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < 18; i++) {
     headMistBlobs.push({
       angle: rand(0, Math.PI * 2),
-      radiusBase: rand(0.55, 1.15),
-      radiusVar: rand(0.15, 0.4),
+      radiusBase: rand(0.55, 1.25),
+      radiusVar: rand(0.2, 0.5),
       speed: rand(0.15, 0.45),
       phase: rand(0, Math.PI * 2),
-      size: rand(60, 150)
+      size: rand(55, 165)
     });
   }
 
-  /* ======================= State machine ======================= */
+  /* ======================= State machine (mist only — the figure stays gold) ======================= */
 
   const PALETTES = {
-    idle:      { r: 232, g: 185, b: 79,  mistR: 120, mistG: 105, mistB: 90,  turbulence: 0.35, jitter: 0.6,  flicker: 0.55, pulse: 0 },
-    listening: { r: 210, g: 225, b: 150, mistR: 110, mistG: 150, mistB: 120, turbulence: 0.55, jitter: 0.9,  flicker: 0.8,  pulse: 0.4 },
-    thinking:  { r: 210, g: 175, b: 255, mistR: 130, mistG: 95,  mistB: 170, turbulence: 1.5,  jitter: 2.6,  flicker: 1.3,  pulse: 0.15 },
-    speaking:  { r: 255, g: 220, b: 150, mistR: 160, mistG: 120, mistB: 70,  turbulence: 0.9,  jitter: 1.1,  flicker: 1.6,  pulse: 1 }
+    idle:      { mistR: 150, mistG: 120, mistB: 80,  turbulence: 0.4,  jitter: 0.6, flicker: 0.55, pulse: 0 },
+    listening: { mistR: 140, mistG: 170, mistB: 120, turbulence: 0.65, jitter: 0.9, flicker: 0.8,  pulse: 0.4 },
+    thinking:  { mistR: 160, mistG: 110, mistB: 200, turbulence: 1.7,  jitter: 2.6, flicker: 1.3,  pulse: 0.2 },
+    speaking:  { mistR: 210, mistG: 160, mistB: 90,  turbulence: 1.05, jitter: 1.1, flicker: 1.6,  pulse: 1 }
   };
 
   let currentState = 'idle';
@@ -268,8 +288,9 @@
 
     updateLive(dt);
 
-    // Trailing fade for smoky persistence
-    ctx.fillStyle = 'rgba(3, 3, 8, 0.20)';
+    // Trailing fade — slow, so the mist lingers and drifts instead of
+    // refreshing instantly frame to frame.
+    ctx.fillStyle = 'rgba(3, 3, 8, 0.22)';
     ctx.fillRect(0, 0, W, H);
 
     drawAmbientMist(t);
@@ -284,7 +305,7 @@
       const cx = (b.ox * W) + Math.sin(t * b.speed + b.phase) * b.driftX;
       const cy = (b.oy * H) + Math.cos(t * b.speed * 0.8 + b.phase) * b.driftY;
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, b.r);
-      g.addColorStop(0, `rgba(${live.mistR | 0}, ${live.mistG | 0}, ${live.mistB | 0}, 0.045)`);
+      g.addColorStop(0, `rgba(${live.mistR | 0}, ${live.mistG | 0}, ${live.mistB | 0}, 0.09)`);
       g.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = g;
       ctx.fillRect(cx - b.r, cy - b.r, b.r * 2, b.r * 2);
@@ -316,7 +337,7 @@
       const size = b.size * scale * pulse * (0.7 + turb * 0.25);
 
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, size);
-      g.addColorStop(0, `rgba(${live.mistR | 0}, ${live.mistG | 0}, ${live.mistB | 0}, ${0.20 * pulse})`);
+      g.addColorStop(0, `rgba(${live.mistR | 0}, ${live.mistG | 0}, ${live.mistB | 0}, ${0.26 * pulse})`);
       g.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = g;
       ctx.fillRect(cx - size, cy - size, size * 2, size * 2);
@@ -329,7 +350,17 @@
     const jitterAmp = live.jitter;
     const flickerSpeed = live.flicker;
 
+    // Gentle floating rotation — the pseudo-3D relief lighting plus this
+    // slow sway is what sells the "floating goddess head" feel without a
+    // real 3D engine.
+    const rotation = Math.sin(t * 0.15) * 0.07;
+    const pivotY = oy + 150 * scale;
+
     ctx.save();
+    ctx.translate(ox, pivotY);
+    ctx.rotate(rotation);
+    ctx.translate(-ox, -pivotY);
+
     for (const p of faceParticles) {
       const dx = Math.sin(t * 0.6 * p.speed + p.driftPhaseX) * jitterAmp;
       const dy = Math.cos(t * 0.5 * p.speed + p.driftPhaseY) * jitterAmp;
@@ -337,12 +368,12 @@
       const sx = ox + (p.bx + dx) * scale;
       const sy = oy + floatY + (p.by + dy) * scale;
 
-      const flicker = 0.55 + Math.sin(t * flickerSpeed * p.speed + p.phase) * 0.45;
-      const alpha = Math.max(0.08, Math.min(1, flicker));
+      const flicker = 0.65 + Math.sin(t * flickerSpeed * p.speed + p.phase) * 0.35;
+      const alpha = Math.max(0.15, Math.min(1, flicker));
 
       ctx.beginPath();
       ctx.arc(sx, sy, p.r * scale * (SPACING * 0.32), 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${live.r | 0}, ${live.g | 0}, ${live.b | 0}, ${alpha})`;
+      ctx.fillStyle = `rgba(${p.color.r | 0}, ${p.color.g | 0}, ${p.color.b | 0}, ${alpha})`;
       ctx.fill();
     }
     ctx.restore();
@@ -353,7 +384,6 @@
   /* ======================= App logic (speech in/out, chat, memory) ======================= */
 
   const statusEl = document.getElementById('status');
-  const conversationEl = document.getElementById('conversation');
   const resetBtn = document.getElementById('reset-btn');
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -364,20 +394,6 @@
 
   let recognition = null;
   let isListening = false;
-
-  function addMessage(role, text) {
-    const div = document.createElement('div');
-    div.className = 'msg ' + (role === 'user' ? 'user' : 'vanta');
-    const label = document.createElement('span');
-    label.className = 'role';
-    label.textContent = role === 'user' ? 'You' : 'Vanta';
-    const body = document.createElement('span');
-    body.textContent = text;
-    div.appendChild(label);
-    div.appendChild(body);
-    conversationEl.appendChild(div);
-    div.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }
 
   function setState(state) {
     currentState = state;
@@ -406,14 +422,11 @@
       }
 
       const data = await res.json();
-      const reply = data.response || '(no response)';
-      addMessage('vanta', reply);
+      const reply = data.response || 'Sorry, I did not get a response.';
       speak(reply);
     } catch (err) {
       console.error(err);
-      const errText = 'Sorry, I ran into an error talking to the server.';
-      addMessage('vanta', errText);
-      speak(errText);
+      speak('Sorry, I ran into an error talking to the server.');
     }
   }
 
@@ -445,7 +458,6 @@
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      addMessage('user', transcript);
       sendToVanta(transcript);
     };
 
@@ -477,7 +489,6 @@
   resetBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     window.speechSynthesis && window.speechSynthesis.cancel();
-    conversationEl.innerHTML = '';
     setState('idle');
     try {
       await fetch('/reset', { method: 'POST' });
