@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Jarvis</title>
+<title>Vanta</title>
 <style>
   html, body {
     margin: 0;
@@ -103,7 +103,7 @@
     color: #cfe8ff;
   }
 
-  .msg.jarvis {
+  .msg.vanta {
     align-self: flex-start;
     background: #16202b;
     color: #a8f0c8;
@@ -118,19 +118,38 @@
     opacity: 0.55;
     margin-bottom: 4px;
   }
+
+  #reset-btn {
+    margin-top: 20px;
+    background: none;
+    border: 1px solid rgba(127, 184, 222, 0.4);
+    color: #7fb8de;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  #reset-btn:hover {
+    background: rgba(127, 184, 222, 0.1);
+  }
 </style>
 </head>
 <body>
   <div class="container">
-    <button id="reactor-btn" aria-label="Talk to Jarvis"></button>
+    <button id="reactor-btn" aria-label="Talk to Vanta"></button>
     <div id="status">Click to talk</div>
     <div id="conversation"></div>
+    <button id="reset-btn">New conversation</button>
   </div>
 
 <script>
   const btn = document.getElementById('reactor-btn');
   const statusEl = document.getElementById('status');
   const conversationEl = document.getElementById('conversation');
+  const resetBtn = document.getElementById('reset-btn');
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -144,10 +163,10 @@
 
   function addMessage(role, text) {
     const div = document.createElement('div');
-    div.className = 'msg ' + (role === 'user' ? 'user' : 'jarvis');
+    div.className = 'msg ' + (role === 'user' ? 'user' : 'vanta');
     const label = document.createElement('span');
     label.className = 'role';
-    label.textContent = role === 'user' ? 'You' : 'Jarvis';
+    label.textContent = role === 'user' ? 'You' : 'Vanta';
     const body = document.createElement('span');
     body.textContent = text;
     div.appendChild(label);
@@ -171,10 +190,10 @@
     }
   }
 
-  async function sendToJarvis(text) {
+  async function sendToVanta(text) {
     setState('thinking');
     try {
-      const res = await fetch('http://localhost:3000/chat', {
+      const res = await fetch('/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text })
@@ -186,12 +205,12 @@
 
       const data = await res.json();
       const reply = data.response || '(no response)';
-      addMessage('jarvis', reply);
+      addMessage('vanta', reply);
       speak(reply);
     } catch (err) {
       console.error(err);
       const errText = 'Sorry, I ran into an error talking to the server.';
-      addMessage('jarvis', errText);
+      addMessage('vanta', errText);
       speak(errText);
     }
   }
@@ -225,7 +244,7 @@
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       addMessage('user', transcript);
-      sendToJarvis(transcript);
+      sendToVanta(transcript);
     };
 
     recognition.onerror = (event) => {
@@ -251,6 +270,17 @@
     }
     window.speechSynthesis && window.speechSynthesis.cancel();
     startListening();
+  });
+
+  resetBtn.addEventListener('click', async () => {
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    conversationEl.innerHTML = '';
+    setState('idle');
+    try {
+      await fetch('/reset', { method: 'POST' });
+    } catch (err) {
+      console.error('Failed to reset conversation:', err);
+    }
   });
 </script>
 </body>
