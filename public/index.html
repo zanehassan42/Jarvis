@@ -558,6 +558,34 @@
     window.speechSynthesis.speak(utterance);
   }
 
+  /* ---- Greet Zane by name as soon as the page opens. Some browsers block
+     speech before any user interaction, so we also try again on the first
+     click if the page-load attempt was silently blocked. ---- */
+
+  function timeGreeting() {
+    const h = new Date().getHours();
+    if (h < 5) return 'Still up, Zane?';
+    if (h < 12) return 'Good morning, Zane.';
+    if (h < 18) return 'Good afternoon, Zane.';
+    return 'Good evening, Zane.';
+  }
+
+  let greetingAttempted = false;
+  function speakGreeting() {
+    if (greetingAttempted || !window.speechSynthesis) return;
+    greetingAttempted = true;
+    const utterance = new SpeechSynthesisUtterance(timeGreeting());
+    if (selectedVoice) utterance.voice = selectedVoice;
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.onstart = () => setState('speaking');
+    utterance.onend = () => setState('idle');
+    utterance.onerror = () => setState('idle');
+    window.speechSynthesis.speak(utterance);
+  }
+
+  window.addEventListener('load', () => setTimeout(speakGreeting, 600));
+
   function startListening() {
     if (!SpeechRecognition || isListening) return;
 
@@ -593,6 +621,12 @@
   }
 
   canvas.addEventListener('click', () => {
+    if (!greetingAttempted) {
+      // Autoplay was likely blocked on load — this click is the first
+      // user gesture, so use it to greet instead. Click again to talk.
+      speakGreeting();
+      return;
+    }
     if (isListening) {
       recognition && recognition.stop();
       return;
