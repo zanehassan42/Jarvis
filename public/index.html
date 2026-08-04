@@ -7,13 +7,20 @@
 <style>
   :root {
     color-scheme: dark;
+    --mono: "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
   }
 
   html, body {
     margin: 0;
     padding: 0;
     height: 100%;
-    background: radial-gradient(circle at 50% 28%, #10131d 0%, #05060a 65%, #030305 100%);
+    background-color: #05060a;
+    background-image:
+      linear-gradient(rgba(160, 200, 230, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(160, 200, 230, 0.05) 1px, transparent 1px),
+      radial-gradient(circle at 50% 25%, #10131d 0%, #05060a 60%, #030305 100%);
+    background-size: 42px 42px, 42px 42px, cover;
+    background-position: center;
     color: #d0e8ff;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     overflow-x: hidden;
@@ -29,31 +36,26 @@
     box-sizing: border-box;
   }
 
-  .brand {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.5em;
-    text-transform: uppercase;
-    color: #6fa8d8;
-    margin-bottom: 36px;
-    text-shadow: 0 0 18px rgba(63, 208, 255, 0.5);
-  }
+  /* ---------- HUD frame ---------- */
 
-  /* ---------- Reactor ---------- */
-
-  .reactor-wrap {
+  .hud-frame {
     position: relative;
-    width: 280px;
-    height: 280px;
+    width: 420px;
+    max-width: 100%;
+    padding: 34px 20px 26px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
     --core-light: #3fd0ff;
     --core-mid: #0d6ea8;
     --core-dark: #063a55;
     --glow: rgba(63, 208, 255, 0.55);
     --accent: #3fd0ff;
-    transition: filter 0.4s ease;
   }
 
-  .reactor-wrap.listening {
+  .hud-frame.listening {
     --core-light: #6fffb0;
     --core-mid: #0d9a5a;
     --core-dark: #045933;
@@ -61,7 +63,7 @@
     --accent: #6fffb0;
   }
 
-  .reactor-wrap.thinking {
+  .hud-frame.thinking {
     --core-light: #cfb2ff;
     --core-mid: #6a3fb0;
     --core-dark: #2c1650;
@@ -69,12 +71,148 @@
     --accent: #b98bff;
   }
 
-  .reactor-wrap.speaking {
+  .hud-frame.speaking {
     --core-light: #ffe29a;
     --core-mid: #a86a0d;
     --core-dark: #593a04;
     --glow: rgba(255, 215, 111, 0.7);
     --accent: #ffd76f;
+  }
+
+  .corner {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    opacity: 0.45;
+    transition: border-color 0.4s ease, opacity 0.4s ease;
+  }
+
+  .corner.tl { top: 0;    left: 0;    border-top: 1px solid var(--accent);    border-left: 1px solid var(--accent); }
+  .corner.tr { top: 0;    right: 0;   border-top: 1px solid var(--accent);    border-right: 1px solid var(--accent); }
+  .corner.bl { bottom: 0; left: 0;    border-bottom: 1px solid var(--accent); border-left: 1px solid var(--accent); }
+  .corner.br { bottom: 0; right: 0;   border-bottom: 1px solid var(--accent); border-right: 1px solid var(--accent); }
+
+  .hud-frame.listening .corner,
+  .hud-frame.thinking .corner,
+  .hud-frame.speaking .corner {
+    opacity: 0.8;
+  }
+
+  .hud-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sys-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #7fb8de;
+    opacity: 0.55;
+  }
+
+  .status-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #ff5d5d;
+    border: 1px solid rgba(255, 93, 93, 0.4);
+    padding: 4px 8px;
+    border-radius: 2px;
+  }
+
+  .status-tag .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ff5d5d;
+    box-shadow: 0 0 6px 1px rgba(255, 93, 93, 0.8);
+    animation: dot-blink 1.6s ease-in-out infinite;
+  }
+
+  @keyframes dot-blink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.35; }
+  }
+
+  .brand {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    color: #cfe6f7;
+    margin: 22px 0 4px;
+  }
+
+  .brand-sub {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #4d7a9c;
+    margin-bottom: 46px;
+  }
+
+  /* ---------- Reactor ---------- */
+
+  .reactor-wrap {
+    position: relative;
+    width: 240px;
+    height: 240px;
+  }
+
+  .callout {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    opacity: 0.55;
+    white-space: nowrap;
+    transition: color 0.4s ease;
+  }
+
+  .callout::before {
+    content: '';
+    width: 1px;
+    height: 14px;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+
+  .callout.top {
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    flex-direction: column-reverse;
+  }
+
+  .callout.right {
+    top: 50%;
+    right: -78px;
+    transform: translateY(-50%);
+    flex-direction: row;
+    gap: 6px;
+  }
+
+  .callout.right::before {
+    width: 14px;
+    height: 1px;
+  }
+
+  @media (max-width: 480px) {
+    .callout.right { display: none; }
   }
 
   .ring {
@@ -87,8 +225,8 @@
 
   /* Slow ambient ring — always turning gently, like idling machinery */
   .ring-outer {
-    width: 250px;
-    height: 250px;
+    width: 240px;
+    height: 240px;
     border: 1px dashed var(--accent);
     opacity: 0.3;
     animation: spin 60s linear infinite;
@@ -96,8 +234,8 @@
   }
 
   .ring-mid {
-    width: 222px;
-    height: 222px;
+    width: 214px;
+    height: 214px;
     border: 1px solid var(--accent);
     opacity: 0.18;
     animation: spin-reverse 38s linear infinite;
@@ -106,8 +244,8 @@
 
   /* Loading spinner — only visible while thinking */
   .ring-spinner {
-    width: 198px;
-    height: 198px;
+    width: 192px;
+    height: 192px;
     border: 3px solid transparent;
     border-top-color: var(--accent);
     border-right-color: var(--accent);
@@ -116,7 +254,7 @@
     transition: opacity 0.25s ease;
   }
 
-  .reactor-wrap.thinking .ring-spinner {
+  .hud-frame.thinking .ring-spinner {
     opacity: 0.9;
   }
 
@@ -127,8 +265,8 @@
     position: absolute;
     inset: 0;
     margin: auto;
-    width: 180px;
-    height: 180px;
+    width: 172px;
+    height: 172px;
     border-radius: 50%;
     border: 2px solid var(--accent);
     opacity: 0;
@@ -138,8 +276,8 @@
     animation-delay: 0.9s;
   }
 
-  .reactor-wrap.listening .ping,
-  .reactor-wrap.listening .ping::before {
+  .hud-frame.listening .ping,
+  .hud-frame.listening .ping::before {
     animation: ping 1.8s ease-out infinite;
   }
 
@@ -147,8 +285,8 @@
     position: absolute;
     inset: 0;
     margin: auto;
-    width: 180px;
-    height: 180px;
+    width: 172px;
+    height: 172px;
     padding: 0;
     border-radius: 50%;
     border: none;
@@ -185,7 +323,7 @@
     transition: stroke 0.4s ease;
   }
 
-  .spokes line {
+  .spokes .tick {
     stroke: var(--accent);
     stroke-width: 1.4;
     opacity: 0.4;
@@ -194,25 +332,25 @@
 
   .core {
     position: absolute;
-    inset: 15%;
+    inset: 16%;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, var(--core-light), var(--core-mid) 55%, var(--core-dark) 100%);
     box-shadow:
-      0 0 30px 8px var(--glow),
-      inset 0 0 18px rgba(255, 255, 255, 0.28);
+      0 0 26px 6px var(--glow),
+      inset 0 0 16px rgba(255, 255, 255, 0.25);
     animation: breathe 3.2s ease-in-out infinite;
     transition: background 0.4s ease, box-shadow 0.4s ease;
   }
 
-  .reactor-wrap.listening .core {
+  .hud-frame.listening .core {
     animation: breathe 0.9s ease-in-out infinite;
   }
 
-  .reactor-wrap.speaking .core {
+  .hud-frame.speaking .core {
     animation: breathe 0.55s ease-in-out infinite;
   }
 
-  .reactor-wrap.thinking .core {
+  .hud-frame.thinking .core {
     animation: breathe 1.4s ease-in-out infinite;
   }
 
@@ -226,30 +364,54 @@
 
   @keyframes breathe {
     0%, 100% { filter: brightness(1) saturate(1); transform: scale(1); }
-    50%      { filter: brightness(1.22) saturate(1.15); transform: scale(1.035); }
+    50%      { filter: brightness(1.2) saturate(1.15); transform: scale(1.03); }
   }
 
   @keyframes ping {
-    0%   { transform: scale(0.85); opacity: 0.55; }
-    100% { transform: scale(1.55); opacity: 0; }
+    0%   { transform: scale(0.85); opacity: 0.5; }
+    100% { transform: scale(1.5); opacity: 0; }
   }
 
-  /* ---------- Status + conversation ---------- */
+  /* ---------- Status + readout ---------- */
 
   #status {
-    margin-top: 28px;
-    font-size: 13px;
+    margin-top: 22px;
+    font-family: var(--mono);
+    font-size: 12px;
     font-weight: 500;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: #7fb8de;
-    min-height: 20px;
+    min-height: 18px;
     text-align: center;
     transition: color 0.3s ease;
   }
 
+  .readout {
+    margin-top: 18px;
+    display: flex;
+    gap: 22px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: #4d7a9c;
+  }
+
+  .readout b {
+    color: #9fc9e8;
+    font-weight: 600;
+  }
+
+  .readout i {
+    font-style: normal;
+    opacity: 0.6;
+    margin-left: 1px;
+  }
+
+  /* ---------- Conversation ---------- */
+
   #conversation {
-    margin-top: 40px;
+    margin-top: 34px;
     width: 100%;
     max-width: 640px;
     display: flex;
@@ -259,7 +421,7 @@
 
   .msg {
     padding: 12px 16px;
-    border-radius: 10px;
+    border-radius: 4px;
     line-height: 1.4;
     font-size: 15px;
     max-width: 85%;
@@ -274,36 +436,39 @@
 
   .msg.user {
     align-self: flex-end;
-    background: #1a3550;
+    background: rgba(26, 53, 80, 0.6);
+    border: 1px solid rgba(127, 184, 222, 0.2);
     color: #cfe8ff;
   }
 
   .msg.vanta {
     align-self: flex-start;
-    background: #16202b;
+    background: rgba(22, 32, 43, 0.6);
     color: #a8f0c8;
-    border: 1px solid rgba(111, 255, 176, 0.25);
+    border: 1px solid rgba(111, 255, 176, 0.2);
   }
 
   .msg .role {
     display: block;
-    font-size: 10px;
-    letter-spacing: 0.1em;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    opacity: 0.55;
+    opacity: 0.5;
     margin-bottom: 4px;
   }
 
   #reset-btn {
     margin-top: 28px;
     background: none;
-    border: 1px solid rgba(127, 184, 222, 0.4);
+    border: 1px solid rgba(127, 184, 222, 0.35);
     color: #7fb8de;
-    font-size: 12px;
-    letter-spacing: 0.08em;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    padding: 8px 18px;
-    border-radius: 20px;
+    padding: 8px 16px;
+    border-radius: 2px;
     cursor: pointer;
     transition: background 0.2s ease, border-color 0.2s ease;
   }
@@ -316,44 +481,67 @@
 </head>
 <body>
   <div class="container">
-    <div class="brand">Vanta</div>
+    <div class="hud-frame" id="hud-frame">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
 
-    <div class="reactor-wrap" id="reactor-wrap">
-      <div class="ring ring-outer"></div>
-      <div class="ring ring-mid"></div>
-      <div class="ring ring-spinner"></div>
-      <div class="ping"></div>
-      <button id="reactor-btn" aria-label="Talk to Vanta">
-        <svg class="spokes" viewBox="0 0 100 100" aria-hidden="true">
-          <circle class="bezel" cx="50" cy="50" r="48" />
-          <g>
-            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(0 50 50)" />
-            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(30 50 50)" />
-            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(60 50 50)" />
-            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(90 50 50)" />
-            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(120 50 50)" />
-            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(150 50 50)" />
-            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(180 50 50)" />
-            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(210 50 50)" />
-            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(240 50 50)" />
-            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(270 50 50)" />
-            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(300 50 50)" />
-            <line x1="50" y1="4"  x2="50" y2="14" transform="rotate(330 50 50)" />
-          </g>
-        </svg>
-        <div class="core"></div>
-      </button>
+      <div class="hud-row">
+        <div class="sys-label">VANTA // SYS.01</div>
+        <div class="status-tag"><span class="dot"></span><span id="status-tag-text">IDLE</span></div>
+      </div>
+
+      <div class="brand">Vanta</div>
+      <div class="brand-sub">Voice Interface</div>
+
+      <div class="reactor-wrap" id="reactor-wrap">
+        <div class="callout top">CORE.LINK</div>
+        <div class="callout right">SIG.ARRAY</div>
+        <div class="ring ring-outer"></div>
+        <div class="ring ring-mid"></div>
+        <div class="ring ring-spinner"></div>
+        <div class="ping"></div>
+        <button id="reactor-btn" aria-label="Talk to Vanta">
+          <svg class="spokes" viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="bezel" cx="50" cy="50" r="48" />
+            <g>
+              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(0 50 50)" />
+              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(30 50 50)" />
+              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(60 50 50)" />
+              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(90 50 50)" />
+              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(120 50 50)" />
+              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(150 50 50)" />
+              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(180 50 50)" />
+              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(210 50 50)" />
+              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(240 50 50)" />
+              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(270 50 50)" />
+              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(300 50 50)" />
+              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(330 50 50)" />
+            </g>
+          </svg>
+          <div class="core"></div>
+        </button>
+      </div>
+
+      <div id="status">Click to talk</div>
+
+      <div class="readout">
+        <span>FREQ <b>432</b><i>Hz</i></span>
+        <span>SIG <b>98</b><i>%</i></span>
+        <span>LAT <b>12</b><i>ms</i></span>
+      </div>
     </div>
 
-    <div id="status">Click to talk</div>
     <div id="conversation"></div>
     <button id="reset-btn">New conversation</button>
   </div>
 
 <script>
-  const wrap = document.getElementById('reactor-wrap');
+  const wrap = document.getElementById('hud-frame');
   const btn = document.getElementById('reactor-btn');
   const statusEl = document.getElementById('status');
+  const statusTagEl = document.getElementById('status-tag-text');
   const conversationEl = document.getElementById('conversation');
   const resetBtn = document.getElementById('reset-btn');
 
@@ -388,6 +576,13 @@
     speaking: '#ffd76f'
   };
 
+  const STATUS_LABELS = {
+    idle: 'IDLE',
+    listening: 'LISTENING',
+    thinking: 'THINKING',
+    speaking: 'SPEAKING'
+  };
+
   function setState(state) {
     wrap.classList.remove('listening', 'thinking', 'speaking');
     if (state === 'listening') {
@@ -403,6 +598,7 @@
       statusEl.textContent = 'Click to talk';
     }
     statusEl.style.color = STATUS_COLORS[state] || STATUS_COLORS.idle;
+    statusTagEl.textContent = STATUS_LABELS[state] || STATUS_LABELS.idle;
   }
 
   async function sendToVanta(text) {
