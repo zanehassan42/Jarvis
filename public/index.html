@@ -5,543 +5,354 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Vanta</title>
 <style>
-  :root {
-    color-scheme: dark;
-    --mono: "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  }
-
   html, body {
     margin: 0;
     padding: 0;
+    width: 100%;
     height: 100%;
-    background-color: #05060a;
-    background-image:
-      linear-gradient(rgba(160, 200, 230, 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(160, 200, 230, 0.05) 1px, transparent 1px),
-      radial-gradient(circle at 50% 25%, #10131d 0%, #05060a 60%, #030305 100%);
-    background-size: 42px 42px, 42px 42px, cover;
-    background-position: center;
-    color: #d0e8ff;
+    background: #030308;
+    overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    overflow-x: hidden;
   }
 
-  .container {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-    box-sizing: border-box;
-  }
-
-  /* ---------- HUD frame ---------- */
-
-  .hud-frame {
-    position: relative;
-    width: 420px;
-    max-width: 100%;
-    padding: 34px 20px 26px;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-
-    --core-light: #3fd0ff;
-    --core-mid: #0d6ea8;
-    --core-dark: #063a55;
-    --glow: rgba(63, 208, 255, 0.55);
-    --accent: #3fd0ff;
-  }
-
-  .hud-frame.listening {
-    --core-light: #6fffb0;
-    --core-mid: #0d9a5a;
-    --core-dark: #045933;
-    --glow: rgba(111, 255, 176, 0.7);
-    --accent: #6fffb0;
-  }
-
-  .hud-frame.thinking {
-    --core-light: #cfb2ff;
-    --core-mid: #6a3fb0;
-    --core-dark: #2c1650;
-    --glow: rgba(185, 139, 255, 0.65);
-    --accent: #b98bff;
-  }
-
-  .hud-frame.speaking {
-    --core-light: #ffe29a;
-    --core-mid: #a86a0d;
-    --core-dark: #593a04;
-    --glow: rgba(255, 215, 111, 0.7);
-    --accent: #ffd76f;
-  }
-
-  .corner {
-    position: absolute;
-    width: 18px;
-    height: 18px;
-    opacity: 0.45;
-    transition: border-color 0.4s ease, opacity 0.4s ease;
-  }
-
-  .corner.tl { top: 0;    left: 0;    border-top: 1px solid var(--accent);    border-left: 1px solid var(--accent); }
-  .corner.tr { top: 0;    right: 0;   border-top: 1px solid var(--accent);    border-right: 1px solid var(--accent); }
-  .corner.bl { bottom: 0; left: 0;    border-bottom: 1px solid var(--accent); border-left: 1px solid var(--accent); }
-  .corner.br { bottom: 0; right: 0;   border-bottom: 1px solid var(--accent); border-right: 1px solid var(--accent); }
-
-  .hud-frame.listening .corner,
-  .hud-frame.thinking .corner,
-  .hud-frame.speaking .corner {
-    opacity: 0.8;
-  }
-
-  .hud-row {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .sys-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: #7fb8de;
-    opacity: 0.55;
-  }
-
-  .status-tag {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: #ff5d5d;
-    border: 1px solid rgba(255, 93, 93, 0.4);
-    padding: 4px 8px;
-    border-radius: 2px;
-  }
-
-  .status-tag .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #ff5d5d;
-    box-shadow: 0 0 6px 1px rgba(255, 93, 93, 0.8);
-    animation: dot-blink 1.6s ease-in-out infinite;
-  }
-
-  @keyframes dot-blink {
-    0%, 100% { opacity: 1; }
-    50%      { opacity: 0.35; }
-  }
-
-  .brand {
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.5em;
-    text-transform: uppercase;
-    color: #cfe6f7;
-    margin: 22px 0 4px;
-  }
-
-  .brand-sub {
-    font-family: var(--mono);
-    font-size: 9px;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    color: #4d7a9c;
-    margin-bottom: 46px;
-  }
-
-  /* ---------- Reactor ---------- */
-
-  .reactor-wrap {
-    position: relative;
-    width: 240px;
-    height: 240px;
-  }
-
-  .callout {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-family: var(--mono);
-    font-size: 9px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--accent);
-    opacity: 0.55;
-    white-space: nowrap;
-    transition: color 0.4s ease;
-  }
-
-  .callout::before {
-    content: '';
-    width: 1px;
-    height: 14px;
-    background: var(--accent);
-    opacity: 0.6;
-  }
-
-  .callout.top {
-    top: -30px;
-    left: 50%;
-    transform: translateX(-50%);
-    flex-direction: column-reverse;
-  }
-
-  .callout.right {
-    top: 50%;
-    right: -78px;
-    transform: translateY(-50%);
-    flex-direction: row;
-    gap: 6px;
-  }
-
-  .callout.right::before {
-    width: 14px;
-    height: 1px;
-  }
-
-  @media (max-width: 480px) {
-    .callout.right { display: none; }
-  }
-
-  .ring {
-    position: absolute;
+  #scene {
+    position: fixed;
     inset: 0;
-    margin: auto;
-    border-radius: 50%;
-    pointer-events: none;
-  }
-
-  /* Slow ambient ring — always turning gently, like idling machinery */
-  .ring-outer {
-    width: 240px;
-    height: 240px;
-    border: 1px dashed var(--accent);
-    opacity: 0.3;
-    animation: spin 60s linear infinite;
-    transition: border-color 0.4s ease;
-  }
-
-  .ring-mid {
-    width: 214px;
-    height: 214px;
-    border: 1px solid var(--accent);
-    opacity: 0.18;
-    animation: spin-reverse 38s linear infinite;
-    transition: border-color 0.4s ease;
-  }
-
-  /* Loading spinner — only visible while thinking */
-  .ring-spinner {
-    width: 192px;
-    height: 192px;
-    border: 3px solid transparent;
-    border-top-color: var(--accent);
-    border-right-color: var(--accent);
-    opacity: 0;
-    animation: spin 0.9s linear infinite;
-    transition: opacity 0.25s ease;
-  }
-
-  .hud-frame.thinking .ring-spinner {
-    opacity: 0.9;
-  }
-
-  /* Sonar ping rings — only visible while listening */
-  .ping,
-  .ping::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    margin: auto;
-    width: 172px;
-    height: 172px;
-    border-radius: 50%;
-    border: 2px solid var(--accent);
-    opacity: 0;
-  }
-
-  .ping::before {
-    animation-delay: 0.9s;
-  }
-
-  .hud-frame.listening .ping,
-  .hud-frame.listening .ping::before {
-    animation: ping 1.8s ease-out infinite;
-  }
-
-  #reactor-btn {
-    position: absolute;
-    inset: 0;
-    margin: auto;
-    width: 172px;
-    height: 172px;
-    padding: 0;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
+    width: 100vw;
+    height: 100vh;
+    display: block;
     cursor: pointer;
-    outline: none;
-    transition: transform 0.15s ease;
   }
 
-  #reactor-btn:hover {
-    transform: scale(1.03);
-  }
-
-  #reactor-btn:active {
-    transform: scale(0.97);
-  }
-
-  #reactor-btn:disabled {
-    cursor: not-allowed;
-  }
-
-  .spokes {
-    position: absolute;
+  .overlay {
+    position: fixed;
     inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  .spokes .bezel {
-    fill: none;
-    stroke: var(--accent);
-    stroke-width: 1;
-    opacity: 0.6;
-    transition: stroke 0.4s ease;
-  }
-
-  .spokes .tick {
-    stroke: var(--accent);
-    stroke-width: 1.4;
-    opacity: 0.4;
-    transition: stroke 0.4s ease;
-  }
-
-  .core {
-    position: absolute;
-    inset: 16%;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, var(--core-light), var(--core-mid) 55%, var(--core-dark) 100%);
-    box-shadow:
-      0 0 26px 6px var(--glow),
-      inset 0 0 16px rgba(255, 255, 255, 0.25);
-    animation: breathe 3.2s ease-in-out infinite;
-    transition: background 0.4s ease, box-shadow 0.4s ease;
-  }
-
-  .hud-frame.listening .core {
-    animation: breathe 0.9s ease-in-out infinite;
-  }
-
-  .hud-frame.speaking .core {
-    animation: breathe 0.55s ease-in-out infinite;
-  }
-
-  .hud-frame.thinking .core {
-    animation: breathe 1.4s ease-in-out infinite;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-
-  @keyframes spin-reverse {
-    to { transform: rotate(-360deg); }
-  }
-
-  @keyframes breathe {
-    0%, 100% { filter: brightness(1) saturate(1); transform: scale(1); }
-    50%      { filter: brightness(1.2) saturate(1.15); transform: scale(1.03); }
-  }
-
-  @keyframes ping {
-    0%   { transform: scale(0.85); opacity: 0.5; }
-    100% { transform: scale(1.5); opacity: 0; }
-  }
-
-  /* ---------- Status + readout ---------- */
-
-  #status {
-    margin-top: 22px;
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: #7fb8de;
-    min-height: 18px;
-    text-align: center;
-    transition: color 0.3s ease;
-  }
-
-  .readout {
-    margin-top: 18px;
     display: flex;
-    gap: 22px;
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    color: #4d7a9c;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    pointer-events: none;
+    padding: 0 24px 40px;
+    box-sizing: border-box;
   }
-
-  .readout b {
-    color: #9fc9e8;
-    font-weight: 600;
-  }
-
-  .readout i {
-    font-style: normal;
-    opacity: 0.6;
-    margin-left: 1px;
-  }
-
-  /* ---------- Conversation ---------- */
 
   #conversation {
-    margin-top: 34px;
     width: 100%;
-    max-width: 640px;
+    max-width: 560px;
+    max-height: 30vh;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
+    margin-bottom: 22px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 30%);
+    mask-image: linear-gradient(to bottom, transparent, black 30%);
   }
 
   .msg {
-    padding: 12px 16px;
-    border-radius: 4px;
-    line-height: 1.4;
-    font-size: 15px;
-    max-width: 85%;
-    word-wrap: break-word;
-    animation: fade-in 0.25s ease;
-  }
-
-  @keyframes fade-in {
-    from { opacity: 0; transform: translateY(4px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .msg.user {
-    align-self: flex-end;
-    background: rgba(26, 53, 80, 0.6);
-    border: 1px solid rgba(127, 184, 222, 0.2);
-    color: #cfe8ff;
-  }
-
-  .msg.vanta {
-    align-self: flex-start;
-    background: rgba(22, 32, 43, 0.6);
-    color: #a8f0c8;
-    border: 1px solid rgba(111, 255, 176, 0.2);
+    font-size: 14px;
+    line-height: 1.5;
+    color: rgba(232, 226, 210, 0.85);
+    animation: fade-in 0.4s ease;
   }
 
   .msg .role {
-    display: block;
-    font-family: var(--mono);
-    font-size: 9px;
-    letter-spacing: 0.14em;
+    font-size: 10px;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    opacity: 0.5;
-    margin-bottom: 4px;
+    margin-right: 8px;
+    color: rgba(232, 185, 79, 0.65);
+  }
+
+  .msg.user .role {
+    color: rgba(180, 200, 220, 0.6);
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  #status {
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(232, 185, 79, 0.55);
+    margin-bottom: 14px;
+    min-height: 16px;
+    text-align: center;
+    transition: color 0.6s ease;
+  }
+
+  .brand {
+    font-size: 13px;
+    font-weight: 300;
+    letter-spacing: 0.55em;
+    color: rgba(230, 220, 200, 0.5);
   }
 
   #reset-btn {
-    margin-top: 28px;
+    position: fixed;
+    top: 22px;
+    right: 26px;
     background: none;
-    border: 1px solid rgba(127, 184, 222, 0.35);
-    color: #7fb8de;
-    font-family: var(--mono);
+    border: none;
+    color: rgba(230, 220, 200, 0.35);
     font-size: 10px;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    padding: 8px 16px;
-    border-radius: 2px;
     cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease;
+    pointer-events: auto;
+    padding: 6px;
+    transition: color 0.2s ease;
   }
 
   #reset-btn:hover {
-    background: rgba(127, 184, 222, 0.1);
-    border-color: rgba(127, 184, 222, 0.7);
+    color: rgba(232, 185, 79, 0.8);
   }
 </style>
 </head>
 <body>
-  <div class="container">
-    <div class="hud-frame" id="hud-frame">
-      <div class="corner tl"></div>
-      <div class="corner tr"></div>
-      <div class="corner bl"></div>
-      <div class="corner br"></div>
+  <canvas id="scene"></canvas>
 
-      <div class="hud-row">
-        <div class="sys-label">VANTA // SYS.01</div>
-        <div class="status-tag"><span class="dot"></span><span id="status-tag-text">IDLE</span></div>
-      </div>
+  <button id="reset-btn">Reset</button>
 
-      <div class="brand">Vanta</div>
-      <div class="brand-sub">Voice Interface</div>
-
-      <div class="reactor-wrap" id="reactor-wrap">
-        <div class="callout top">CORE.LINK</div>
-        <div class="callout right">SIG.ARRAY</div>
-        <div class="ring ring-outer"></div>
-        <div class="ring ring-mid"></div>
-        <div class="ring ring-spinner"></div>
-        <div class="ping"></div>
-        <button id="reactor-btn" aria-label="Talk to Vanta">
-          <svg class="spokes" viewBox="0 0 100 100" aria-hidden="true">
-            <circle class="bezel" cx="50" cy="50" r="48" />
-            <g>
-              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(0 50 50)" />
-              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(30 50 50)" />
-              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(60 50 50)" />
-              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(90 50 50)" />
-              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(120 50 50)" />
-              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(150 50 50)" />
-              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(180 50 50)" />
-              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(210 50 50)" />
-              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(240 50 50)" />
-              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(270 50 50)" />
-              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(300 50 50)" />
-              <line class="tick" x1="50" y1="4" x2="50" y2="14" transform="rotate(330 50 50)" />
-            </g>
-          </svg>
-          <div class="core"></div>
-        </button>
-      </div>
-
-      <div id="status">Click to talk</div>
-
-      <div class="readout">
-        <span>FREQ <b>432</b><i>Hz</i></span>
-        <span>SIG <b>98</b><i>%</i></span>
-        <span>LAT <b>12</b><i>ms</i></span>
-      </div>
-    </div>
-
+  <div class="overlay">
     <div id="conversation"></div>
-    <button id="reset-btn">New conversation</button>
+    <div id="status">Tap anywhere to speak</div>
+    <div class="brand">V&nbsp;.&nbsp;A&nbsp;.&nbsp;N&nbsp;.&nbsp;T&nbsp;.&nbsp;A</div>
   </div>
 
 <script>
-  const wrap = document.getElementById('hud-frame');
-  const btn = document.getElementById('reactor-btn');
+  /* ======================= Portrait silhouette (profile — no eye contact) ======================= */
+
+  const MASK_W = 300, MASK_H = 420;
+  const PROFILE_PATH = new Path2D(`
+    M 150 50
+    C 192 52 222 84 228 122
+    C 233 132 236 140 240 150
+    C 246 158 254 162 252 172
+    C 250 180 240 180 236 186
+    C 233 191 238 194 238 199
+    C 238 204 230 203 228 208
+    C 226 213 232 214 230 219
+    C 228 224 220 224 216 229
+    C 212 236 206 240 198 240
+    C 186 240 172 232 165 220
+    C 158 228 152 236 150 248
+    C 152 265 156 275 160 285
+    C 180 300 210 315 228 340
+    L 228 420
+    L 62 420
+    L 62 340
+    C 80 315 100 300 118 285
+    C 122 270 120 255 118 240
+    C 116 220 100 210 92 190
+    C 78 165 75 135 82 108
+    C 90 80 110 60 150 50
+    Z
+  `);
+
+  const maskCanvas = document.createElement('canvas');
+  maskCanvas.width = MASK_W;
+  maskCanvas.height = MASK_H;
+  const maskCtx = maskCanvas.getContext('2d');
+  maskCtx.fillStyle = '#fff';
+  maskCtx.fill(PROFILE_PATH);
+  const maskData = maskCtx.getImageData(0, 0, MASK_W, MASK_H).data;
+
+  function insideFace(x, y) {
+    if (x < 0 || y < 0 || x >= MASK_W || y >= MASK_H) return false;
+    return maskData[(((y | 0) * MASK_W) + (x | 0)) * 4 + 3] > 10;
+  }
+
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  const faceParticles = [];
+  const SPACING = 3.4;
+  for (let y = 0; y < MASK_H; y += SPACING) {
+    for (let x = 0; x < MASK_W; x += SPACING) {
+      const jx = x + rand(-1.2, 1.2);
+      const jy = y + rand(-1.2, 1.2);
+      if (insideFace(jx, jy)) {
+        faceParticles.push({
+          bx: jx - MASK_W / 2,
+          by: jy,
+          phase: rand(0, Math.PI * 2),
+          speed: rand(0.5, 1.3),
+          r: rand(0.8, 1.6),
+          driftPhaseX: rand(0, Math.PI * 2),
+          driftPhaseY: rand(0, Math.PI * 2)
+        });
+      }
+    }
+  }
+
+  /* ======================= Canvas + resize ======================= */
+
+  const canvas = document.getElementById('scene');
+  const ctx = canvas.getContext('2d');
+  let W, H, DPR;
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  /* ======================= Ambient full-page mist ======================= */
+
+  const ambientBlobs = [];
+  for (let i = 0; i < 22; i++) {
+    ambientBlobs.push({
+      ox: rand(0, 1),
+      oy: rand(0, 1),
+      r: rand(120, 320),
+      speed: rand(0.02, 0.06),
+      phase: rand(0, Math.PI * 2),
+      driftX: rand(30, 90),
+      driftY: rand(20, 70)
+    });
+  }
+
+  /* ======================= Head mist (state-reactive cloud) ======================= */
+
+  const headMistBlobs = [];
+  for (let i = 0; i < 26; i++) {
+    headMistBlobs.push({
+      angle: rand(0, Math.PI * 2),
+      radiusBase: rand(0.55, 1.15),
+      radiusVar: rand(0.15, 0.4),
+      speed: rand(0.15, 0.45),
+      phase: rand(0, Math.PI * 2),
+      size: rand(60, 150)
+    });
+  }
+
+  /* ======================= State machine ======================= */
+
+  const PALETTES = {
+    idle:      { r: 232, g: 185, b: 79,  mistR: 120, mistG: 105, mistB: 90,  turbulence: 0.35, jitter: 0.6,  flicker: 0.55, pulse: 0 },
+    listening: { r: 210, g: 225, b: 150, mistR: 110, mistG: 150, mistB: 120, turbulence: 0.55, jitter: 0.9,  flicker: 0.8,  pulse: 0.4 },
+    thinking:  { r: 210, g: 175, b: 255, mistR: 130, mistG: 95,  mistB: 170, turbulence: 1.5,  jitter: 2.6,  flicker: 1.3,  pulse: 0.15 },
+    speaking:  { r: 255, g: 220, b: 150, mistR: 160, mistG: 120, mistB: 70,  turbulence: 0.9,  jitter: 1.1,  flicker: 1.6,  pulse: 1 }
+  };
+
+  let currentState = 'idle';
+  const live = { ...PALETTES.idle };
+
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  function updateLive(dt) {
+    const target = PALETTES[currentState];
+    const t = Math.min(1, dt * 2.2);
+    for (const key in target) {
+      live[key] = lerp(live[key], target[key], t);
+    }
+  }
+
+  /* ======================= Render loop ======================= */
+
+  let lastT = performance.now();
+
+  function draw(now) {
+    const dt = Math.min(0.05, (now - lastT) / 1000);
+    lastT = now;
+    const t = now / 1000;
+
+    updateLive(dt);
+
+    // Trailing fade for smoky persistence
+    ctx.fillStyle = 'rgba(3, 3, 8, 0.20)';
+    ctx.fillRect(0, 0, W, H);
+
+    drawAmbientMist(t);
+    drawHeadMist(t);
+    drawFaceParticles(t);
+
+    requestAnimationFrame(draw);
+  }
+
+  function drawAmbientMist(t) {
+    for (const b of ambientBlobs) {
+      const cx = (b.ox * W) + Math.sin(t * b.speed + b.phase) * b.driftX;
+      const cy = (b.oy * H) + Math.cos(t * b.speed * 0.8 + b.phase) * b.driftY;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, b.r);
+      g.addColorStop(0, `rgba(${live.mistR | 0}, ${live.mistG | 0}, ${live.mistB | 0}, 0.045)`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(cx - b.r, cy - b.r, b.r * 2, b.r * 2);
+    }
+  }
+
+  function headOrigin() {
+    const topMargin = H * 0.08;
+    const bottomTarget = H * 0.78;
+    const scale = (bottomTarget - topMargin) / MASK_H;
+    return {
+      x: W / 2,
+      y: topMargin,
+      scale
+    };
+  }
+
+  function drawHeadMist(t) {
+    const { x: ox, y: oy, scale } = headOrigin();
+    const turb = live.turbulence;
+    const pulse = 1 + Math.sin(t * 3.2) * live.pulse * 0.25;
+
+    for (const b of headMistBlobs) {
+      const wobble = Math.sin(t * b.speed * turb + b.phase) * b.radiusVar;
+      const radius = (b.radiusBase + wobble) * MASK_H * scale * 0.62;
+      const ang = b.angle + t * 0.05 * turb;
+      const cx = ox + Math.cos(ang) * radius * 0.9;
+      const cy = oy - MASK_H * scale * 0.15 + Math.sin(ang) * radius * 1.05;
+      const size = b.size * scale * pulse * (0.7 + turb * 0.25);
+
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, size);
+      g.addColorStop(0, `rgba(${live.mistR | 0}, ${live.mistG | 0}, ${live.mistB | 0}, ${0.20 * pulse})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(cx - size, cy - size, size * 2, size * 2);
+    }
+  }
+
+  function drawFaceParticles(t) {
+    const { x: ox, y: oy, scale } = headOrigin();
+    const floatY = Math.sin(t * 0.4) * 6;
+    const jitterAmp = live.jitter;
+    const flickerSpeed = live.flicker;
+
+    ctx.save();
+    for (const p of faceParticles) {
+      const dx = Math.sin(t * 0.6 * p.speed + p.driftPhaseX) * jitterAmp;
+      const dy = Math.cos(t * 0.5 * p.speed + p.driftPhaseY) * jitterAmp;
+
+      const sx = ox + (p.bx + dx) * scale;
+      const sy = oy + floatY + (p.by + dy) * scale;
+
+      const flicker = 0.55 + Math.sin(t * flickerSpeed * p.speed + p.phase) * 0.45;
+      const alpha = Math.max(0.08, Math.min(1, flicker));
+
+      ctx.beginPath();
+      ctx.arc(sx, sy, p.r * scale * (SPACING * 0.32), 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${live.r | 0}, ${live.g | 0}, ${live.b | 0}, ${alpha})`;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  requestAnimationFrame(draw);
+
+  /* ======================= App logic (speech in/out, chat, memory) ======================= */
+
   const statusEl = document.getElementById('status');
-  const statusTagEl = document.getElementById('status-tag-text');
   const conversationEl = document.getElementById('conversation');
   const resetBtn = document.getElementById('reset-btn');
 
@@ -549,7 +360,6 @@
 
   if (!SpeechRecognition) {
     statusEl.textContent = 'Speech recognition not supported in this browser';
-    btn.disabled = true;
   }
 
   let recognition = null;
@@ -569,36 +379,17 @@
     div.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
-  const STATUS_COLORS = {
-    idle: '#7fb8de',
-    listening: '#6fffb0',
-    thinking: '#b98bff',
-    speaking: '#ffd76f'
-  };
-
-  const STATUS_LABELS = {
-    idle: 'IDLE',
-    listening: 'LISTENING',
-    thinking: 'THINKING',
-    speaking: 'SPEAKING'
-  };
-
   function setState(state) {
-    wrap.classList.remove('listening', 'thinking', 'speaking');
+    currentState = state;
     if (state === 'listening') {
-      wrap.classList.add('listening');
       statusEl.textContent = 'Listening…';
     } else if (state === 'thinking') {
-      wrap.classList.add('thinking');
       statusEl.textContent = 'Thinking…';
     } else if (state === 'speaking') {
-      wrap.classList.add('speaking');
       statusEl.textContent = 'Speaking…';
     } else {
-      statusEl.textContent = 'Click to talk';
+      statusEl.textContent = 'Tap anywhere to speak';
     }
-    statusEl.style.color = STATUS_COLORS[state] || STATUS_COLORS.idle;
-    statusTagEl.textContent = STATUS_LABELS[state] || STATUS_LABELS.idle;
   }
 
   async function sendToVanta(text) {
@@ -666,7 +457,7 @@
 
     recognition.onend = () => {
       isListening = false;
-      if (statusEl.textContent === 'Listening…') {
+      if (currentState === 'listening') {
         setState('idle');
       }
     };
@@ -674,7 +465,7 @@
     recognition.start();
   }
 
-  btn.addEventListener('click', () => {
+  canvas.addEventListener('click', () => {
     if (isListening) {
       recognition && recognition.stop();
       return;
@@ -683,7 +474,8 @@
     startListening();
   });
 
-  resetBtn.addEventListener('click', async () => {
+  resetBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
     window.speechSynthesis && window.speechSynthesis.cancel();
     conversationEl.innerHTML = '';
     setState('idle');
