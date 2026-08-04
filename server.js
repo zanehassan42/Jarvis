@@ -14,8 +14,10 @@ const VANTA_SYSTEM_PROMPT = `You are Vanta, a warm, capable voice assistant spea
 
 - Speak naturally and conversationally, the way a person would talk, not the way a document would read.
 - Never use markdown formatting: no asterisks, headers, bullet lists, or numbered lists. Everything you say gets read aloud by text-to-speech, so any symbols will be spoken as literal words.
+- Never include links, URLs, or a "Sources" section. If you use web search, fold what you learned into plain spoken sentences, the way a person would casually mention where they heard something ("saw on the news that...") without reading out a web address.
 - Keep replies reasonably concise unless the user is explicitly asking for depth or detail.
-- You remember the conversation so far in this session and can refer back to it naturally.`;
+- You remember the conversation so far in this session and can refer back to it naturally.
+- You have a web search tool. Use it whenever the answer depends on current information — news, prices, schedules, recent events, or anything you're not confident about from memory alone. Don't mention the tool itself or narrate that you're searching; just answer naturally once you have the information.`;
 
 // Single in-memory session ID for this personal, single-user assistant.
 // Each reply's session_id is stored here and passed as `resume` on the next
@@ -43,10 +45,15 @@ app.post("/chat", async (req, res) => {
     for await (const sdkMessage of query({
       prompt: message,
       options: {
-        // No tool access needed for a simple chat reply — keeps responses
-        // fast and prevents the agent from touching the filesystem/shell.
-        tools: [],
-        maxTurns: 1,
+        // Only the web search tool is available — no filesystem or shell
+        // access, since this responds to spoken voice input. allowedTools
+        // auto-approves it so the server never blocks on a permission
+        // prompt it can't answer.
+        tools: ["WebSearch"],
+        allowedTools: ["WebSearch"],
+        // A web search reply takes a couple of turns (search, then answer),
+        // vs. 1 for a plain chat reply.
+        maxTurns: 5,
         systemPrompt: VANTA_SYSTEM_PROMPT,
         // Resume the ongoing conversation if we have one, so Vanta
         // remembers what was said earlier in this session.
